@@ -412,7 +412,7 @@ def extract_f1_schedule(soup):
             date = cells[1].get_text(strip=True)
             time = cells[2].get_text(strip=True)
             if len(time) == 6:
-                time = '0'+time
+                time = '0' + time
             # Add extracted information to the schedule list
             schedule.append({
                 'title': current_title,
