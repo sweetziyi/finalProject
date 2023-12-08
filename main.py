@@ -3,6 +3,8 @@ import calendar
 from datetime import datetime, date
 # import datetime
 from tkinter import messagebox, simpledialog
+import requests
+from bs4 import BeautifulSoup
 
 # Calendar Module
 class CalendarModule(tk.Frame):
@@ -132,6 +134,9 @@ class EventManagement(tk.Frame):
 
         self.delete_button = tk.Button(self, text="Delete Selected Event", command=self.delete_event)
         self.delete_button.pack(side=tk.TOP, fill=tk.X)
+        
+        self.scrape_button = tk.Button(self, text="Scrape F1 Schedule", command=self.scrape_f1_schedule)
+        self.scrape_button.pack(side=tk.TOP, fill=tk.X)
 
         # Load events for selected date
         self.load_events(self.selected_date)
@@ -165,6 +170,20 @@ class EventManagement(tk.Frame):
         # Clear the entries
         self.event_time_entry.delete(0, tk.END)
         self.event_name_entry.delete(0, tk.END)
+
+    def add_event_from_scrape(self, date, event_name, event_time):
+        # 将日期字符串转换为 datetime.date 对象
+        # 假设 date 的格式是 "Friday, March 3, 2023"
+        event_date = datetime.strptime(date, "%A, %B %d, %Y").date()
+
+        # 添加事件到 self.events 字典
+        if event_date not in self.events:
+            self.events[event_date] = {}
+        self.events[event_date][event_time] = event_name
+
+        # 如果选定的日期是当前加载的日期，则重新加载事件
+        if event_date == self.selected_date:
+            self.load_events(event_date)
 
     def delete_event(self):
         # 获取选中的事件索引
@@ -206,6 +225,57 @@ class EventManagement(tk.Frame):
         self.date_label.config(text=f"Events for: {self.selected_date.strftime('%Y-%m-%d')}")
         self.load_events(self.selected_date)
 
+    def scrape_f1_schedule(self):
+        url = 'https://espnpressroom.com/us/formula-1-2018-world-championship-schedule-on-espn-networks/'
+        headers = {
+            'User-Agent':"Mozilla/5.0 (Macintosh; Intel Mac OS X 10.6; rv:2.0.1) Gecko/20100101 Firefox/4.0.1"
+        }
+        response = requests.get(url, headers=headers)
+        if response.status_code == 200:
+            soup = BeautifulSoup(response.text, 'html.parser')
+            # 在这里调用您之前写的提取日程的函数 extract_f1_schedule
+            # print(soup)
+            f1_schedule = extract_f1_schedule(soup)
+            for event_info in f1_schedule:
+                # 假设您的日期格式是 'Friday, March 3, 2023'
+                # event_date = datetime.strptime(event_info['date'], '%A, %B %d, %Y').date()
+                # 将事件添加到日历中
+                self.add_event_from_scrape(event_info['date'], event_info['session'], event_info['time'])
+        else:
+            print("Failed to retrieve the web page. Status code:", response.status_code)
+
+def extract_f1_schedule(soup):
+    # 初始化变量来保存跨行标题
+    current_title = None
+    schedule = []
+
+    # 找到所有的行
+    table_rows = soup.find_all('tr')
+    for row in table_rows:
+        # 在当前行中找到所有单元格
+        cells = row.find_all('td')
+            
+        # 检查是否是带有标题的行（假设标题行有 'rowspan' 属性）
+        if cells and 'rowspan' in cells[0].attrs:
+            current_title = cells[1].get_text(strip=True)
+            
+        # 根据单元格数量来判断是否是详细信息的行
+        if len(cells) == 5:  # 假设详细信息行有5个单元格
+            # 提取文本
+            session = cells[0].get_text(strip=True)
+            date = cells[1].get_text(strip=True)
+            time = cells[2].get_text(strip=True)
+                
+            # 将提取的信息添加到日程列表中
+            schedule.append({
+                'title': current_title,
+                'session': session,
+                'date': date,
+                'time': time
+            })
+
+    return schedule    
+
 # Main Application
 class MainApplication(tk.Tk):
     def __init__(self, *args, **kwargs):
@@ -224,6 +294,9 @@ class MainApplication(tk.Tk):
         # Layout the modules
         self.calendar_module.pack(side="left", fill="both", expand=True)
         self.event_management.pack(side="right", fill="both", expand=True)
+
+    def run_scrape(self):
+        self.event_management.scrape_f1_schedule()
 
 if __name__ == "__main__":
     app = MainApplication()
