@@ -323,6 +323,7 @@ class EventManagement(tk.Frame):
         """
         # Get the index of the selected event
         selected_index = self.event_listbox.curselection()
+        print(selected_index)
         if selected_index:
             selected_index = selected_index[0]
             event_time = list(self.events[self.selected_date].keys())[selected_index]
@@ -410,7 +411,8 @@ def extract_f1_schedule(soup):
             session = cells[0].get_text(strip=True)
             date = cells[1].get_text(strip=True)
             time = cells[2].get_text(strip=True)
-
+            if len(time) == 6:
+                time = '0'+time
             # Add extracted information to the schedule list
             schedule.append({
                 'title': current_title,
